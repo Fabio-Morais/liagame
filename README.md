@@ -1,1 +1,3 @@
 # liagame
+
+- [ ] Optimizar mira
