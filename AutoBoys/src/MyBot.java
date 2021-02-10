@@ -7,7 +7,7 @@ import lia.*;
  * see them while warrior units shoot if they see opponents.
  */
 public class MyBot implements Bot {
-
+    // sadasd
     // This method is called 10 times per game second and holds current
     // game state. Use Api object to call actions on your units.
     // - GameState reference: https://docs.liagame.com/api/#gamestate
