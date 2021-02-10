@@ -171,7 +171,6 @@ public class MyBot implements Bot {
         }
 
         api.shoot(u.id);
-        api.saySomething(u.id, "I see you!");
 
     }
 
