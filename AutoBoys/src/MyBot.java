@@ -52,10 +52,47 @@ public class MyBot implements Bot {
 
             // If the unit is a warrior and it sees an opponent then start shooting
             if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length > 0) {
-                api.shoot(unit.id);
-                api.saySomething(unit.id, "I see you!");
+
+                OpponentInView target = ChooseTarget(unit);
+                shoot(api,unit,target);
+
             }
         }
+    }
+
+    public OpponentInView ChooseTarget(UnitData u){
+
+        //If see more than 1 Choose the target with less health
+        OpponentInView target = u.opponentsInView[0];
+
+        if (u.opponentsInView.length > 1) {
+            for (int j = 1; j < u.opponentsInView.length; j++) {
+                if (target.health > u.opponentsInView[j].health) {
+                    target = u.opponentsInView[j];
+                }
+            }
+        }
+        return target;
+
+    }
+
+    public void shoot(Api api, UnitData u, OpponentInView target) {
+
+        //Shoot
+        float RotationAngle = MathUtil.angleBetweenUnitAndPoint(u,target.x,target.y);
+
+        api.setSpeed(u.id, Speed.NONE);
+
+        if (RotationAngle > 0) {
+            api.setRotation(u.id, Rotation.SLOW_LEFT);
+        }
+        else if (RotationAngle < 0) {
+            api.setRotation(u.id, Rotation.SLOW_RIGHT);
+        }
+
+        api.shoot(u.id);
+        api.saySomething(u.id, "I see you!");
+
     }
 
     // Connects your bot to Lia game engine, don't change it.
