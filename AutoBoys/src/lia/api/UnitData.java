@@ -1,5 +1,7 @@
 package lia.api;
 
+import java.util.Arrays;
+
 public class UnitData {
     public int id;
     public UnitType type;
@@ -43,6 +45,26 @@ public class UnitData {
         this.opponentBulletsInView = opponentBulletsInView;
         this.resourcesInView = resourcesInView;
         this.navigationPath = navigationPath;
+    }
+
+    @Override
+    public String toString() {
+        return "UnitData{" +
+                "id=" + id +
+                ", type=" + type +
+                ", health=" + health +
+                ", x=" + x +
+                ", y=" + y +
+                ", orientationAngle=" + orientationAngle +
+                ", speed=" + speed +
+                ", rotation=" + rotation +
+                ", canShoot=" + canShoot +
+                ", nBullets=" + nBullets +
+                ", opponentsInView=" + Arrays.toString(opponentsInView) +
+                ", opponentBulletsInView=" + Arrays.toString(opponentBulletsInView) +
+                ", resourcesInView=" + Arrays.toString(resourcesInView) +
+                ", navigationPath=" + Arrays.toString(navigationPath) +
+                '}';
     }
 }
 
