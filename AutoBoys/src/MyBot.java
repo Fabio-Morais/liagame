@@ -28,7 +28,7 @@ public class MyBot implements Bot {
 
         for(int i = 0; i < resources.size(); i++ ){
             float currentDistance = MathUtil.distance(unit.x, unit.y, resources.get(i).x, resources.get(i).y);// calculates the distance between the robot and the resource coords
-            if(currentDistance < minDistance && !resourcesOccupied.containsKey(resources.get(i)) ){
+            if(currentDistance < 75 && currentDistance < minDistance && !resourcesOccupied.containsKey(resources.get(i)) ){
                 minDist = resources.get(i);
                 minDistance = currentDistance;
             }
@@ -39,6 +39,20 @@ public class MyBot implements Bot {
             units.get(unit.id).randomNavigation = false;
             resourcesOccupied.put(minDist, true);
         }
+    }
+    /*Returns true if it needs more workers*/
+    private boolean workersResources(GameState state, int numberOfWorkers){
+
+        if(state.time <= 110){
+            return true;
+        }else if(state.time > 110 && numberOfWorkers > 10){
+            return true;
+        }else if(state.time > 120 && numberOfWorkers > 6) {
+            return true;
+        }else if(state.time > 130 && numberOfWorkers > 2) {
+            return true;
+        }
+        return false;
     }
 
     private void randomNavigation(GameState state, Api api, UnitData unit){
@@ -82,13 +96,31 @@ public class MyBot implements Bot {
             units.get(unit.id).update(unit);
         }
     }
+
+    private void smartSpawnUnits(GameState state, Api api){
+        int numberOfWorkers = 0;
+        int numberOfWarrior = 0;
+        for (UnitData unit : state.units) {
+            if (unit.type == UnitType.WORKER)
+                numberOfWorkers++;
+            else
+                numberOfWarrior++;
+        }
+        /*workers < 60% e unidades < 20 e (tempo < 120 e workers < 5)*/
+        if ((numberOfWorkers / (float) state.units.length) < 0.6f && (state.units.length <= 20) && workersResources(state, numberOfWorkers)) {
+            if (state.resources >= Constants.WORKER_PRICE) {
+                api.spawnUnit(UnitType.WORKER);
+            }
+        } else if (state.resources >= Constants.WARRIOR_PRICE) {
+            api.spawnUnit(UnitType.WARRIOR);
+        }
+
+    }
+
     @Override
     public void update(GameState state, Api api) {
 
-        // If you have enough resources to spawn a new warrior unit then spawn it.
-        if (state.resources >= Constants.WORKER_PRICE) {
-            api.spawnUnit(UnitType.WORKER);
-        }
+        smartSpawnUnits(state, api);
 
         // We iterate through all of our units that are still alive.
         for (int i = 0; i < state.units.length; i++) {
