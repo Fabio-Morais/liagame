@@ -132,7 +132,7 @@ public class MyBot implements Bot {
                 }
             }
         }
-        
+
         // odstranimo najkasneje dodane
         if (food.size() > 20) {
             for (int i = 0; i < food.size() - 20; i++) {
@@ -210,8 +210,8 @@ public class MyBot implements Bot {
 
                 float enemyRotationRelativeToUnit = MathUtil.angleBetweenUnitAndPoint
                     (enemy.x, enemy.y, enemy.orientationAngle, unit.x, unit.y);
-                
-                if ((enemyRotationRelativeToUnit > 110f || enemyRotationRelativeToUnit < -110f) && enemy.speed == Speed.FORWARD && 
+
+                if ((enemyRotationRelativeToUnit > 110f || enemyRotationRelativeToUnit < -110f) && enemy.speed == Speed.FORWARD &&
                     MathUtil.distance(unit.x, unit.y, enemy.x, enemy.y) > 10f) {
                     api.setSpeed(unit.id, Speed.FORWARD);
                 }
@@ -249,7 +249,7 @@ public class MyBot implements Bot {
         float unitRadius = Constants.UNIT_DIAMETER / 2f;
         float distance = MathUtil.distance(unit.x, unit.y, enemy.x, enemy.y);
         double hipo = Math.sqrt(Math.pow((double) unitRadius, 2) + Math.pow((double) distance, 2));
-        
+
         return (float) Math.toDegrees(Math.asin(unitRadius / (float) hipo)) / 2f;
     }
 
@@ -264,7 +264,7 @@ public class MyBot implements Bot {
 
             double velocityX = 1;
             double velocityY = 1;
-            
+
             if (angle <= 90f) {
                 angle = angle;
             }
@@ -285,7 +285,7 @@ public class MyBot implements Bot {
             velocityX *= Math.cos(Math.toRadians(angle)) * velocity;
             velocityY *= Math.sin(Math.toRadians(angle)) * velocity;
 
-            double a = Math.pow(velocityX, 2) + Math.pow(velocityY, 2) - Math.pow(Constants.BULLET_VELOCITY, 2); 
+            double a = Math.pow(velocityX, 2) + Math.pow(velocityY, 2) - Math.pow(Constants.BULLET_VELOCITY, 2);
             double b = 2 * (velocityX * (enemy.x - unit.x) + velocityY * (enemy.y - unit.y));
             double c = Math.pow(enemy.x - unit.x, 2) + Math.pow(enemy.y - unit.y, 2);
 
