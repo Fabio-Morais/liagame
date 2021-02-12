@@ -301,7 +301,7 @@ public class MyBot implements Bot {
                 Shoot(api, unit, RotationAngle, enemy, state);
 
             }
-            else {
+            else if(unit.type == UnitType.WARRIOR){
 
                 goToEnemy(api,unit);
 
@@ -320,10 +320,11 @@ public class MyBot implements Bot {
     }
 
         public void goToEnemy(Api api, UnitData u){
-
+        
             for (OpponentInView enemy : visibleOponents) {
                 if(u.navigationPath.length == 0) {
                     api.navigationStart(u.id, enemy.x, enemy.y);
+                    api.saySomething(u.id,"A Caminho");
                     return;
                 }
             }
@@ -348,12 +349,10 @@ public class MyBot implements Bot {
 
         public float PredictPosition(UnitData u, OpponentInView enemy){
 
-            double vX, vY;
-            vX = vY = 1;
-
+            double vX = 1, vY = 1;
             float v ;
+
             float EnemyAngle = enemy.orientationAngle;
-            float unitAngle = u.orientationAngle;
 
             if (enemy.speed == Speed.FORWARD){
                 v = Constants.UNIT_FORWARD_VELOCITY;
@@ -363,17 +362,38 @@ public class MyBot implements Bot {
                 return MathUtil.angleBetweenUnitAndPoint(u, enemy.x, enemy.y);
             }
 
+            //Calculate velocity vX and vY
             vX *= Math.cos( Math.toRadians( EnemyAngle ) ) * v;
             vY *= Math.sin( Math.toRadians( EnemyAngle ) ) * v;
 
-            double t;
-            double tx = (enemy.x - u.x) / (Constants.BULLET_VELOCITY * Math.cos(Math.toRadians( unitAngle ) ) - vX);
-            double ty = (enemy.y - u.y) / (Constants.BULLET_VELOCITY * Math.sin(Math.toRadians( unitAngle ) ) - vY);
 
-            t = tx;
+            //Resolve equation (BULLET_VELOCITY*t)^2 = (enemy.x + vX*t - u.x)^2 + (enemy.y + vy*t -u.y)^2
+            double a = Math.pow(vX, 2) + Math.pow(vY, 2) - Math.pow(Constants.BULLET_VELOCITY, 2);
+            double b = 2 * (vX * (enemy.x - u.x) + vY * (enemy.y - u.y));
+            double c = Math.pow(enemy.x - u.x, 2) + Math.pow(enemy.y - u.y, 2);
+            double result = Math.pow(b, 2) - 4 * a * c;
 
-            float x = (float) (vX * tx + enemy.x);
-            float y = (float) (vY * ty + enemy.y);
+            double t1 = 0, t2 = 0, t;
+            if (result > 0.0) {
+                t1 = (-b + Math.sqrt(result)) / (2 * a);
+                t2 = (-b - Math.sqrt(result)) / (2 * a);
+            } else if (result == 0.0) {
+                t1 = -b / (2.0 * a);
+            } else {
+                System.out.println("The equation has no real roots.");
+            }
+
+            //Choose t
+            if (t1 < t2 && t1 > 0) {
+                t = t1;
+            }
+            else {
+                t = t2;
+            }
+
+            //Calculate point to shoot
+            float x = (float) (vX * t + enemy.x);
+            float y = (float) (vY * t + enemy.y);
 
             return MathUtil.angleBetweenUnitAndPoint(u, x, y);
         }
