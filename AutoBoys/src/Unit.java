@@ -1,3 +1,4 @@
+import lia.api.OpponentInView;
 import lia.api.Point;
 import lia.api.ResourceInView;
 import lia.api.UnitData;
@@ -15,6 +16,7 @@ public class Unit {
 
     public boolean inFire;
     public boolean helping;
+    public OpponentInView opponent;
 
 
     public Unit(UnitData unitData) {
