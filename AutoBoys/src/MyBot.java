@@ -33,7 +33,7 @@ public class MyBot implements Bot {
 
         for (int i = 0; i < resources.size(); i++) {
             float currentDistance = MathUtil.distance(unit.x, unit.y, resources.get(i).x, resources.get(i).y);// calculates the distance between the robot and the resource coords
-            if (currentDistance < 75 && currentDistance < minDistance && resourcesOccupied.get(resources.get(i)) == -1 ) {
+            if (currentDistance < 75 && currentDistance < minDistance && resourcesOccupied.get(resources.get(i)) == -1) {
                 minDist = resources.get(i);
                 minDistance = currentDistance;
             }
@@ -41,29 +41,42 @@ public class MyBot implements Bot {
         /*Execute when it find some resource available*/
         if (minDistance != 500) {
             api.navigationStart(unit.id, minDist.x, minDist.y);
+            units.get(unit.id).goTo = minDist;
             units.get(unit.id).randomNavigation = false;
             units.get(unit.id).goToResource = minDist;
             resourcesOccupied.put(minDist, unit.id);
         }
     }
+
     /*returns false if doesn't have reserved resources*/
-    private boolean goToReservedResources(GameState state, Api api, UnitData unit){
+    private boolean goToReservedResources(GameState state, Api api, UnitData unit) {
+        ResourceInView minDist = new ResourceInView(200, 200);//high value just to simplify
+        float minDistance = 500;//high value just to simplify
+
         for (int i = 0; i < resources.size(); i++) {
-            if(resourcesOccupied.get(resources.get(i)) == unit.id){
-                //System.out.println(state.time+" -> "+resourcesOccupied.get(resources.get(i)) + " | "+ unit.id+" go to: "+ resources.get(i).x+ "  "+ resources.get(i).y);
-                api.navigationStart(unit.id, resources.get(i).x, resources.get(i).y);
-                units.get(unit.id).randomNavigation = false;
-                resourcesOccupied.put(resources.get(i), -2);// -2 = ja foi visitado
-                units.get(unit.id).numberOfPaths--;
-                /*desbloqueia para onde ia para os outros*/
-                if(units.get(unit.id).goToResource != null){
-                    resourcesOccupied.put(units.get(unit.id).goToResource, unit.id);
-                    units.get(unit.id).goToResource = null;// desbloqueia
+            if (resourcesOccupied.get(resources.get(i)) == unit.id) {
+                float currentDistance = MathUtil.distance(unit.x, unit.y, resources.get(i).x, resources.get(i).y);// calculates the distance between the robot and the resource coords
+                if (currentDistance < minDistance) {
+                    minDist = resources.get(i);
+                    minDistance = currentDistance;
                 }
-                return true;
+                //System.out.println(state.time+" -> "+resourcesOccupied.get(resources.get(i)) + " | "+ unit.id+" go to: "+ resources.get(i).x+ "  "+ resources.get(i).y);
             }
         }
-        return false;
+        if (minDistance != 500) {
+            api.navigationStart(unit.id, minDist.x, minDist.y);
+            units.get(unit.id).goTo = minDist;
+            units.get(unit.id).randomNavigation = false;
+            resourcesOccupied.put(minDist, -2);// -2 = ja foi visitado
+            units.get(unit.id).numberOfPaths--;
+            /*desbloqueia para onde ia para os outros*/
+            if (units.get(unit.id).goToResource != null) {
+                resourcesOccupied.put(units.get(unit.id).goToResource, unit.id);
+                units.get(unit.id).goToResource = null;// desbloqueia
+            }
+            return true;
+        } else
+            return false;
     }
 
     /*Returns true if it needs more workers*/
@@ -85,9 +98,9 @@ public class MyBot implements Bot {
         // If the unit is not going anywhere, we send it
         // to a random valid location on the map.
         if (unit.navigationPath.length == 0 && !units.get(unit.id).initialPosition) {
-            if(unit.type == UnitType.WORKER && units.get(unit.id).numberOfPaths > 0){
+            if (unit.type == UnitType.WORKER && units.get(unit.id).numberOfPaths > 0) {
                 return;
-            }else if(unit.type == UnitType.WORKER && units.get(unit.id).goToResource != null){
+            } else if (unit.type == UnitType.WORKER && units.get(unit.id).goToResource != null) {
                 resourcesOccupied.put(units.get(unit.id).goToResource, unit.id);
                 units.get(unit.id).goToResource = null;// desbloqueia
             }
@@ -97,10 +110,10 @@ public class MyBot implements Bot {
                 int x = (int) (Math.random() * Constants.MAP_WIDTH);
                 int y = (int) (Math.random() * Constants.MAP_HEIGHT);
 
-                if(mapSide == 1 && state.time < 30){
-                    x = (int) (Math.random() * (Constants.MAP_WIDTH/2));
-                }else if(mapSide == 2 && state.time < 30){
-                    x = (int) ((Math.random() * (Constants.MAP_WIDTH - Constants.MAP_WIDTH/2)) + Constants.MAP_WIDTH/2);
+                if (mapSide == 1 && state.time < 30) {
+                    x = (int) (Math.random() * (Constants.MAP_WIDTH / 2));
+                } else if (mapSide == 2 && state.time < 30) {
+                    x = (int) ((Math.random() * (Constants.MAP_WIDTH - Constants.MAP_WIDTH / 2)) + Constants.MAP_WIDTH / 2);
                 }
 
                 // Map is a 2D array of booleans. If map[x][y] equals false it means that
@@ -109,6 +122,7 @@ public class MyBot implements Bot {
                     api.navigationStart(unit.id, x, y);
                     //System.out.println(state.time+" ->random-> "+ unit.id+" go to: "+ x+ "  "+ y);
 
+                    units.get(unit.id).goTo = null;// desbloqueia
                     units.get(unit.id).randomNavigation = true;
                     break;
                 }
@@ -117,7 +131,7 @@ public class MyBot implements Bot {
     }
 
     private void searchResources(GameState state, Api api, UnitData unit) {
-        if(unit.resourcesInView.length == 0 ){
+        if (unit.resourcesInView.length == 0) {
             return;
         }
         //if > 0 then put all the resources in view in array
@@ -131,11 +145,11 @@ public class MyBot implements Bot {
                 //System.out.println(state.time+" -> "+ unit.resourcesInView[i].x+" : "+ unit.resourcesInView[i].y + " - "+resourcesOccupied.get(unit.resourcesInView[i]) + " | "+ unit.id);
 
             }
-        }else{
+        } else {
             for (int i = 0; i < unit.resourcesInView.length; i++) {
                 if (!resources.contains(unit.resourcesInView[i])) {
                     resources.add(unit.resourcesInView[i]);
-                    if(!resourcesOccupied.containsKey(unit.resourcesInView[i]))
+                    if (!resourcesOccupied.containsKey(unit.resourcesInView[i]))
                         resourcesOccupied.put(unit.resourcesInView[i], -1);
                 }
             }
@@ -147,12 +161,12 @@ public class MyBot implements Bot {
     private void goToResources(GameState state, Api api, UnitData unit) {
         if (unit.type == UnitType.WORKER && (unit.navigationPath.length == 0 || units.get(unit.id).randomNavigation)) {//entra se estiver parado ou a ir random
             //chama uma funçao que vai ver ao array se tem algum reservado para ele, caso nao tenha executa a funçao de baixo
-            if(!goToReservedResources(state,api,unit))
+            if (!goToReservedResources(state, api, unit))
                 shortestPathToResource(unit, api);
 
             /*
-            * Ele está a ir com a funçao de cima e de repente encontra resources mais perto para ir -> libertar o ponto em que ia
-            * */
+             * Ele está a ir com a funçao de cima e de repente encontra resources mais perto para ir -> libertar o ponto em que ia
+             * */
         }
     }
 
@@ -243,11 +257,20 @@ public class MyBot implements Bot {
             }
         }
     }
-    private void checkHealth(GameState state, Api api, UnitData unit){
-        if(units.get(unit.id).lastHealth != unit.health){
+
+    private void checkHealth(GameState state, Api api, UnitData unit) {
+
+        /*Recebeu dano aqui*/
+        if (units.get(unit.id).lastHealth != unit.health) {
             units.get(unit.id).lastHealth = unit.health;
+            units.get(unit.id).inFire = true;
+        }
+        if (unit.health == 100) {
+            units.get(unit.id).inFire = false;
         }
     }
+
+
     @Override
     public void update(GameState state, Api api) {
         smartSpawnUnits(state, api);
@@ -259,8 +282,6 @@ public class MyBot implements Bot {
             if (state.time == 0 && !initialize) {
                 initializeFunction(unit);
             }
-            checkHealth(state, api, unit);
-
             initialPosition(state, api, unit);
             randomNavigation(state, api, unit);// navigation randomly if doens't have a path
             searchResources(state, api, unit);//first search and then goToResources
