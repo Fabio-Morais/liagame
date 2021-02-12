@@ -14,6 +14,7 @@ public class Unit {
     public float nextTime;
 
     public boolean inFire;
+    public boolean helping;
 
 
     public Unit(UnitData unitData) {

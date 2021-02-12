@@ -21,7 +21,7 @@ public class MyBot implements Bot {
     /*se aparecer uma resource mais perto entao inverter*/
     HashMap<Integer, Unit> units = new HashMap<Integer, Unit>();//Serve para colocarmos nesta classe coisas especificas de cada unit
     List<ResourceInView> resources = new ArrayList<ResourceInView>();
-    List<OpponentInView> visibleOponents = new ArrayList<OpponentInView>();
+    List<OpponentInView> visibleOpponents = new ArrayList<OpponentInView>();
     HashMap<ResourceInView, Integer> resourcesOccupied = new HashMap<ResourceInView, Integer>();// integer é o unit.id | -2= ja foi visitado | -1 = sem reserva | >=0 unit.id reservado
     List<Point> initialPositionOccupied = new ArrayList<Point>();
 
@@ -124,9 +124,10 @@ public class MyBot implements Bot {
                 if (!Constants.MAP[x][y]) {
                     api.navigationStart(unit.id, x, y);
                     //System.out.println(state.time+" ->random-> "+ unit.id+" go to: "+ x+ "  "+ y);
-
+                    units.get(unit.id).helping = false;
                     units.get(unit.id).goTo = null;// desbloqueia
                     units.get(unit.id).randomNavigation = true;
+                    //api.saySomething(unit.id, "randommm");
                     break;
                 }
             }
@@ -219,7 +220,7 @@ public class MyBot implements Bot {
     }
 
     private void initialPosition(GameState state, Api api, UnitData unit) {
-        if (!(state.time < 30) || unit.opponentsInView.length != 0) {
+        if (!(state.time < 30) || unit.opponentsInView.length != 0 || units.get(unit.id).helping) {
             units.get(unit.id).initialPosition = false;
             return;
         } else if (!(unit.type == UnitType.WARRIOR && state.time < 30)) {
@@ -277,10 +278,8 @@ public class MyBot implements Bot {
     @Override
     public void update(GameState state, Api api) {
 
-        visibleOponents.clear();
-
+        visibleOpponents.clear();
         smartSpawnUnits(state, api);
-
         // We iterate through all of our units that are still alive.
         for (int i = 0; i < state.units.length; i++) {
             UnitData unit = state.units[i];
@@ -295,23 +294,21 @@ public class MyBot implements Bot {
 
             // If the unit is a warrior and it sees an opponent then start shooting
             if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length > 0) {
-
                 OpponentInView enemy = ChooseTarget(unit);
                 float RotationAngle = PredictPosition(unit, enemy);
                 Shoot(api, unit, RotationAngle, enemy, state);
 
             }
-            else {
-
+            else  if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length == 0 && !units.get(unit.id).helping){
                 goToEnemy(api,unit);
-
             }
 
             // If the unit sees an opponent
             if (unit.opponentsInView.length > 0) {
 
                 for (OpponentInView opponent : unit.opponentsInView) {
-                    visibleOponents.add(opponent);
+                    visibleOpponents.add(opponent);
+
                 }
 
             }
@@ -319,15 +316,21 @@ public class MyBot implements Bot {
         }
     }
 
-        public void goToEnemy(Api api, UnitData u){
-
-            for (OpponentInView enemy : visibleOponents) {
-                if(u.navigationPath.length == 0) {
-                    api.navigationStart(u.id, enemy.x, enemy.y);
-                    return;
+        public void goToEnemy(Api api, UnitData unit){
+            OpponentInView minDist = null;//high value just to simplify
+            float minDistance = 500;//high value just to simplify
+            for (OpponentInView enemy : visibleOpponents) {
+                float currentDistance = MathUtil.distance(unit.x, unit.y, enemy.x, enemy.y);// calculates the distance between the robot and the resource coords
+                if (currentDistance < minDistance) {
+                    minDist = enemy;
+                    minDistance = currentDistance;
                 }
             }
-
+            if(minDistance != 500){
+                api.navigationStart(unit.id, minDist.x, minDist.y);
+                units.get(unit.id).helping = true;
+                api.saySomething(unit.id, "A ir "+minDist.x+" "+minDist.y);
+            }
         }
 
         public OpponentInView ChooseTarget(UnitData u){
