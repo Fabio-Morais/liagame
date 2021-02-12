@@ -291,173 +291,178 @@ public class MyBot implements Bot {
             randomNavigation(state, api, unit);// navigation randomly if doens't have a path
             searchResources(state, api, unit);//first search and then goToResources
             goToResources(state, api, unit);
-
+            // If the unit sees an opponent
+            if (unit.opponentsInView.length > 0) {
+                for (OpponentInView opponent : unit.opponentsInView) {
+                    visibleOpponents.add(opponent);
+                }
+            }
             // If the unit is a warrior and it sees an opponent then start shooting
             if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length > 0) {
                 OpponentInView enemy = ChooseTarget(unit);
                 float RotationAngle = PredictPosition(unit, enemy);
                 Shoot(api, unit, RotationAngle, enemy, state);
-
+            } else if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length == 0) {
+                goToEnemy(api, unit);
             }
-            else  if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length == 0 && !units.get(unit.id).helping){
-                goToEnemy(api,unit);
-            }
-
-            // If the unit sees an opponent
-            if (unit.opponentsInView.length > 0) {
-
-                for (OpponentInView opponent : unit.opponentsInView) {
-                    visibleOpponents.add(opponent);
-
-                }
-
-            }
-
         }
     }
 
 
-        public void goToEnemy(Api api, UnitData unit){
-            OpponentInView minDist = null;//high value just to simplify
-            float minDistance = 500;//high value just to simplify
+    public void goToEnemy(Api api, UnitData unit) {
+        boolean aux = false;
+        OpponentInView minDist = null;//high value just to simplify
+        float minDistance = 500;//high value just to simplify
+        if (!units.get(unit.id).helping) {
             for (OpponentInView enemy : visibleOpponents) {
-                float currentDistance = MathUtil.distance(unit.x, unit.y, enemy.x, enemy.y);// calculates the distance between the robot and the resource coords
+                float currentDistance = MathUtil.distance(unit.x, unit.y, enemy.x, enemy.y); // calculates the distance between the robot and the resource coords
                 if (currentDistance < minDistance) {
                     minDist = enemy;
                     minDistance = currentDistance;
                 }
             }
-            if(minDistance != 500){
-                api.navigationStart(unit.id, minDist.x, minDist.y);
-                units.get(unit.id).helping = true;
-                api.saySomething(unit.id, "A ir "+minDist.x+" "+minDist.y);
+        }else{
+            minDistance = MathUtil.distance(unit.x, unit.y, units.get(unit.id).opponent.x, units.get(unit.id).opponent.y); // calculates the distance between the robot and the resource coords
+            for (OpponentInView enemy : visibleOpponents) {
+                float currentDistance = MathUtil.distance(unit.x, unit.y, enemy.x, enemy.y); // calculates the distance between the robot and the resource coords
+                if (currentDistance < minDistance) {
+                    minDist = enemy;
+                    minDistance = currentDistance;
+                    aux=true;
+                }
+            }
+        }
+        if (minDist != null) {
+            api.navigationStart(unit.id, minDist.x, minDist.y);
+            units.get(unit.id).helping = true;
+            units.get(unit.id).opponent = minDist;
+            if(aux){
+                api.saySomething(unit.id, "mudança para ir " + minDist.x + " " + minDist.y);
+                System.out.println("asd");
+            }else
+                api.saySomething(unit.id, "A ir " + minDist.x + " " + minDist.y);
+        }
+    }
+
+    public OpponentInView ChooseTarget(UnitData u) {
+
+        //If see more than 1 Choose the target with less health
+        OpponentInView enemy = u.opponentsInView[0];
+
+        if (u.opponentsInView.length > 1) {
+            for (int j = 1; j < u.opponentsInView.length; j++) {
+                if (enemy.health > u.opponentsInView[j].health) {
+                    enemy = u.opponentsInView[j];
+                }
             }
         }
 
-        public OpponentInView ChooseTarget(UnitData u){
+        return enemy;
+    }
 
-            //If see more than 1 Choose the target with less health
-            OpponentInView enemy = u.opponentsInView[0];
+    public float PredictPosition(UnitData u, OpponentInView enemy) {
 
-            if (u.opponentsInView.length > 1) {
-                for (int j = 1; j < u.opponentsInView.length; j++) {
-                    if (enemy.health > u.opponentsInView[j].health) {
-                        enemy = u.opponentsInView[j];
+        double vX = 1, vY = 1;
+        float v;
+
+        float EnemyAngle = enemy.orientationAngle;
+
+        if (enemy.speed == Speed.FORWARD) {
+            v = Constants.UNIT_FORWARD_VELOCITY;
+        } else if (enemy.speed == Speed.BACKWARD) {
+            v = Constants.UNIT_BACKWARD_VELOCITY;
+        } else {
+            return MathUtil.angleBetweenUnitAndPoint(u, enemy.x, enemy.y);
+        }
+
+        //Calculate velocity vX and vY
+        vX *= Math.cos(Math.toRadians(EnemyAngle)) * v;
+        vY *= Math.sin(Math.toRadians(EnemyAngle)) * v;
+
+
+        //Resolve equation (BULLET_VELOCITY*t)^2 = (enemy.x + vX*t - u.x)^2 + (enemy.y + vy*t -u.y)^2
+        double a = Math.pow(vX, 2) + Math.pow(vY, 2) - Math.pow(Constants.BULLET_VELOCITY, 2);
+        double b = 2 * (vX * (enemy.x - u.x) + vY * (enemy.y - u.y));
+        double c = Math.pow(enemy.x - u.x, 2) + Math.pow(enemy.y - u.y, 2);
+        double result = Math.pow(b, 2) - 4 * a * c;
+
+        double t1 = 0, t2 = 0, t;
+        if (result > 0.0) {
+            t1 = (-b + Math.sqrt(result)) / (2 * a);
+            t2 = (-b - Math.sqrt(result)) / (2 * a);
+        } else if (result == 0.0) {
+            t1 = -b / (2.0 * a);
+        } else {
+            System.out.println("The equation has no real roots.");
+        }
+
+        //Choose t
+        if (t1 < t2 && t1 > 0) {
+            t = t1;
+        } else {
+            t = t2;
+        }
+
+        //Calculate point to shoot
+        float x = (float) (vX * t + enemy.x);
+        float y = (float) (vY * t + enemy.y);
+
+        return MathUtil.angleBetweenUnitAndPoint(u, x, y);
+    }
+
+    public void Shoot(Api api, UnitData u, float rotationAngle, OpponentInView enemy, GameState state) {
+
+        if (rotationAngle > 0 && rotationAngle < 2f) {
+            api.setRotation(u.id, Rotation.SLOW_LEFT);
+        } else if (rotationAngle < 0 && rotationAngle > -2f) {
+            api.setRotation(u.id, Rotation.SLOW_RIGHT);
+        } else if (rotationAngle > 0) {
+            api.setRotation(u.id, Rotation.LEFT);
+        } else {
+            api.setRotation(u.id, Rotation.RIGHT);
+        }
+
+        float shootAngle;
+        float enemyRadius = Constants.UNIT_DIAMETER / 2f;
+        float enemyDistance = MathUtil.distance(u.x, u.y, enemy.x, enemy.y);
+        double offset = Math.sqrt(Math.pow((double) enemyRadius, 2) + Math.pow((double) enemyDistance, 2));
+
+        if (enemyDistance > 15) {
+            shootAngle = (float) Math.toDegrees(Math.asin(enemyRadius / (float) offset)) / 3f;
+            api.navigationStart(u.id, enemy.x, enemy.y);
+        } else {
+            shootAngle = (float) Math.toDegrees(Math.asin(enemyRadius / (float) offset)) / 2f;
+            api.setSpeed(u.id, Speed.NONE);
+        }
+
+
+        if ((rotationAngle < shootAngle && rotationAngle >= 0) || (rotationAngle > -shootAngle && rotationAngle <= 0)) {
+
+            //No ally ahead
+            int i;
+            for (i = 0; i < state.units.length; i++) {
+                UnitData ally = state.units[i];
+
+                if (ally == u)
+                    continue;
+
+                float allyAngle = MathUtil.angleBetweenUnitAndPoint(u, ally.x, ally.y);
+
+                if (MathUtil.distance(u.x, u.y, enemy.x, enemy.y) > MathUtil.distance(u.x, u.y, ally.x, ally.y)) {
+                    if (Math.abs(allyAngle) < 2f) {
+                        api.saySomething(u.id, "Hello Friend");
+                        break;
                     }
                 }
             }
 
-            return enemy;
-        }
-
-        public float PredictPosition(UnitData u, OpponentInView enemy){
-
-            double vX = 1, vY = 1;
-            float v ;
-
-            float EnemyAngle = enemy.orientationAngle;
-
-            if (enemy.speed == Speed.FORWARD){
-                v = Constants.UNIT_FORWARD_VELOCITY;
-            }else if (enemy.speed == Speed.BACKWARD){
-                v = Constants.UNIT_BACKWARD_VELOCITY;
-            }else{
-                return MathUtil.angleBetweenUnitAndPoint(u, enemy.x, enemy.y);
-            }
-
-            //Calculate velocity vX and vY
-            vX *= Math.cos( Math.toRadians( EnemyAngle ) ) * v;
-            vY *= Math.sin( Math.toRadians( EnemyAngle ) ) * v;
-
-
-            //Resolve equation (BULLET_VELOCITY*t)^2 = (enemy.x + vX*t - u.x)^2 + (enemy.y + vy*t -u.y)^2
-            double a = Math.pow(vX, 2) + Math.pow(vY, 2) - Math.pow(Constants.BULLET_VELOCITY, 2);
-            double b = 2 * (vX * (enemy.x - u.x) + vY * (enemy.y - u.y));
-            double c = Math.pow(enemy.x - u.x, 2) + Math.pow(enemy.y - u.y, 2);
-            double result = Math.pow(b, 2) - 4 * a * c;
-
-            double t1 = 0, t2 = 0, t;
-            if (result > 0.0) {
-                t1 = (-b + Math.sqrt(result)) / (2 * a);
-                t2 = (-b - Math.sqrt(result)) / (2 * a);
-            } else if (result == 0.0) {
-                t1 = -b / (2.0 * a);
-            } else {
-                System.out.println("The equation has no real roots.");
-            }
-
-            //Choose t
-            if (t1 < t2 && t1 > 0) {
-                t = t1;
-            }
-            else {
-                t = t2;
-            }
-
-            //Calculate point to shoot
-            float x = (float) (vX * t + enemy.x);
-            float y = (float) (vY * t + enemy.y);
-
-            return MathUtil.angleBetweenUnitAndPoint(u, x, y);
-        }
-
-        public void Shoot(Api api, UnitData u, float rotationAngle, OpponentInView enemy, GameState state) {
-
-            if (rotationAngle > 0 && rotationAngle < 2f) {
-                api.setRotation(u.id, Rotation.SLOW_LEFT);
-            }
-            else if (rotationAngle < 0 && rotationAngle > -2f) {
-                api.setRotation(u.id, Rotation.SLOW_RIGHT);
-            }
-            else if (rotationAngle > 0 ) {
-                api.setRotation(u.id, Rotation.LEFT);
-            }
-            else {
-                api.setRotation(u.id, Rotation.RIGHT);
-            }
-
-            float shootAngle;
-            float enemyRadius = Constants.UNIT_DIAMETER / 2f;
-            float enemyDistance = MathUtil.distance(u.x, u.y, enemy.x, enemy.y);
-            double offset = Math.sqrt(Math.pow((double) enemyRadius, 2) + Math.pow((double) enemyDistance, 2));
-
-            if (enemyDistance > 15){
-                shootAngle = (float) Math.toDegrees(Math.asin(enemyRadius / (float) offset)) / 3f;
-                api.navigationStart(u.id, enemy.x, enemy.y);
-            }
-            else {
-                shootAngle = (float) Math.toDegrees(Math.asin(enemyRadius / (float) offset)) / 2f;
-                api.setSpeed(u.id, Speed.NONE);
-            }
-
-
-            if ((rotationAngle < shootAngle && rotationAngle >= 0) || (rotationAngle > -shootAngle && rotationAngle <= 0)) {
-
-                //No ally ahead
-                int i;
-                for (i = 0; i < state.units.length; i++) {
-                    UnitData ally = state.units[i];
-
-                    if (ally == u)
-                        continue;
-
-                    float allyAngle = MathUtil.angleBetweenUnitAndPoint(u,ally.x,ally.y);
-
-                    if( MathUtil.distance(u.x,u.y,enemy.x,enemy.y) > MathUtil.distance(u.x,u.y,ally.x,ally.y) ) {
-                        if ( Math.abs(allyAngle) < 2f ) {
-                            api.saySomething(u.id, "Hello Friend");
-                            break;
-                        }
-                    }
-                }
-
-                if (i>=state.units.length){
-                    api.shoot(u.id);
-                }
-
+            if (i >= state.units.length) {
+                api.shoot(u.id);
             }
 
         }
+
+    }
 
 
     // Connects your bot to Lia game engine, don't change it.
