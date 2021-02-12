@@ -15,7 +15,7 @@ import java.util.List;
 public class MyBot implements Bot {
 
     List<InitialPosition> initialPosition = new ArrayList<InitialPosition>();
-
+    int aux = 0;
     private boolean initialize = false;
     private int mapSide = 0;//1->left; 2->right
     /*se aparecer uma resource mais perto entao inverter*/
@@ -202,7 +202,7 @@ public class MyBot implements Bot {
 
     }
 
-    private void initializeFunction(UnitData unit) {
+    private void initializeFunction(Api api, UnitData unit) {
         initialize = true;
         /*LEFT SIDE*/
         if (unit.x < 20) {
@@ -215,6 +215,15 @@ public class MyBot implements Bot {
             initialPosition.add(new InitialPosition(new Point(116, 62), new InitialAngle(180, 165, 100)));
             initialPosition.add(new InitialPosition(new Point(125, 45), new InitialAngle(180, 220, 190)));
             initialPosition.add(new InitialPosition(new Point(129, 30), new InitialAngle(180, 280, 245)));
+        }
+        if(aux < 3 && unit.type == UnitType.WORKER && mapSide == 2){
+            if(aux == 0)
+                api.navigationStart(unit.id, 165, 28);
+            else if(aux == 1)
+                api.navigationStart(unit.id, 100, 90);
+            else if(aux == 2)
+                api.navigationStart(unit.id, 100, 30);
+            aux++;
         }
 
     }
@@ -285,7 +294,7 @@ public class MyBot implements Bot {
             UnitData unit = state.units[i];
             updateUnits(state, api, unit);
             if (state.time == 0 && !initialize) {
-                initializeFunction(unit);
+                initializeFunction(api, unit);
             }
             initialPosition(state, api, unit);
             randomNavigation(state, api, unit);// navigation randomly if doens't have a path
