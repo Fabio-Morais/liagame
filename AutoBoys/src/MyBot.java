@@ -100,7 +100,7 @@ public class MyBot implements Bot {
     private void randomNavigation(GameState state, Api api, UnitData unit) {
         // If the unit is not going anywhere, we send it
         // to a random valid location on the map.
-        if (unit.navigationPath.length == 0 && !units.get(unit.id).initialPosition) {
+        if (unit.navigationPath.length == 0 && !units.get(unit.id).initialPosition && unit.opponentsInView.length == 0) {
             if (unit.type == UnitType.WORKER && units.get(unit.id).numberOfPaths > 0) {
                 return;
             } else if (unit.type == UnitType.WORKER && units.get(unit.id).goToResource != null) {
