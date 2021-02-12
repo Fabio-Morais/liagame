@@ -299,7 +299,7 @@ public class MyBot implements Bot {
             }
             // If the unit is a warrior and it sees an opponent then start shooting
             if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length > 0) {
-                OpponentInView enemy = ChooseTarget(unit);
+                OpponentInView enemy = ChooseTarget(api,unit);
                 float RotationAngle = PredictPosition(unit, enemy);
                 Shoot(api, unit, RotationAngle, enemy, state);
             } else if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length == 0) {
@@ -338,15 +338,18 @@ public class MyBot implements Bot {
         }
     }
 
-    public OpponentInView ChooseTarget(UnitData u) {
+    public OpponentInView ChooseTarget(Api api, UnitData u) {
 
         //If see more than 1 Choose the target with less health
         OpponentInView enemy = u.opponentsInView[0];
-
         if (u.opponentsInView.length > 1) {
             for (int j = 1; j < u.opponentsInView.length; j++) {
-                if (enemy.health > u.opponentsInView[j].health) {
+                if (enemy.health > u.opponentsInView[j].health && enemy.type == UnitType.WARRIOR) {
                     enemy = u.opponentsInView[j];
+                    api.saySomething(u.id, "Selecionou warrior menos vida");
+                }else if(enemy.health > u.opponentsInView[j].health){
+                    enemy = u.opponentsInView[j];
+                    api.saySomething(u.id, "Selecionou Worker menos vida");
                 }
             }
         }
@@ -406,29 +409,25 @@ public class MyBot implements Bot {
 
     public void Shoot(Api api, UnitData u, float rotationAngle, OpponentInView enemy, GameState state) {
 
-        if (rotationAngle > 0 && rotationAngle < 2f) {
-            api.setRotation(u.id, Rotation.SLOW_LEFT);
-        } else if (rotationAngle < 0 && rotationAngle > -2f) {
-            api.setRotation(u.id, Rotation.SLOW_RIGHT);
-        } else if (rotationAngle > 0) {
-            api.setRotation(u.id, Rotation.LEFT);
-        } else {
-            api.setRotation(u.id, Rotation.RIGHT);
-        }
+        Rotate(api, u, rotationAngle);
 
         float shootAngle;
         float enemyRadius = Constants.UNIT_DIAMETER / 2f;
         float enemyDistance = MathUtil.distance(u.x, u.y, enemy.x, enemy.y);
-        double offset = Math.sqrt(Math.pow((double) enemyRadius, 2) + Math.pow((double) enemyDistance, 2));
+        double offset = Math.sqrt( Math.pow(enemyRadius, 2) + Math.pow(enemyDistance, 2) );
 
-        if (enemyDistance > 15) {
+        if (enemyDistance > 15){
             shootAngle = (float) Math.toDegrees(Math.asin(enemyRadius / (float) offset)) / 3f;
+            if (u.rotation == Rotation.NONE) {
+                float enemyRotation = MathUtil.angleBetweenUnitAndPoint(enemy.x, enemy.y, enemy.orientationAngle, u.x, u.y);
+                Rotate(api, u, enemyRotation);
+            }
             api.navigationStart(u.id, enemy.x, enemy.y);
-        } else {
+        }
+        else {
             shootAngle = (float) Math.toDegrees(Math.asin(enemyRadius / (float) offset)) / 2f;
             api.setSpeed(u.id, Speed.NONE);
         }
-
 
         if ((rotationAngle < shootAngle && rotationAngle >= 0) || (rotationAngle > -shootAngle && rotationAngle <= 0)) {
 
@@ -440,17 +439,17 @@ public class MyBot implements Bot {
                 if (ally == u)
                     continue;
 
-                float allyAngle = MathUtil.angleBetweenUnitAndPoint(u, ally.x, ally.y);
+                float allyAngle = MathUtil.angleBetweenUnitAndPoint(u,ally.x,ally.y);
 
-                if (MathUtil.distance(u.x, u.y, enemy.x, enemy.y) > MathUtil.distance(u.x, u.y, ally.x, ally.y)) {
-                    if (Math.abs(allyAngle) < 2f) {
-                        api.saySomething(u.id, "Hello Friend");
+                if( MathUtil.distance(u.x,u.y,enemy.x,enemy.y) > MathUtil.distance(u.x,u.y,ally.x,ally.y) ) {
+                    if ( Math.abs(allyAngle) < 3f ) {
+                        //api.saySomething(u.id, "Hello Friend");
                         break;
                     }
                 }
             }
 
-            if (i >= state.units.length) {
+            if (i>=state.units.length){
                 api.shoot(u.id);
             }
 
@@ -458,7 +457,20 @@ public class MyBot implements Bot {
 
     }
 
-
+    public void Rotate(Api api, UnitData u, float rotationAngle){
+        if (rotationAngle > 0 && rotationAngle < 2f) {
+            api.setRotation(u.id, Rotation.SLOW_LEFT);
+        }
+        else if (rotationAngle < 0 && rotationAngle > -2f) {
+            api.setRotation(u.id, Rotation.SLOW_RIGHT);
+        }
+        else if (rotationAngle > 0 ) {
+            api.setRotation(u.id, Rotation.LEFT);
+        }
+        else {
+            api.setRotation(u.id, Rotation.RIGHT);
+        }
+    }
     // Connects your bot to Lia game engine, don't change it.
     public static void main(String[] args) throws Exception {
         NetworkingClient.connectNew(args, new MyBot());
