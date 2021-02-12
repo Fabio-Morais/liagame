@@ -310,7 +310,6 @@ public class MyBot implements Bot {
 
 
     public void goToEnemy(Api api, UnitData unit) {
-        boolean aux = false;
         OpponentInView minDist = null;//high value just to simplify
         float minDistance = 500;//high value just to simplify
         if (!units.get(unit.id).helping) {
@@ -328,7 +327,6 @@ public class MyBot implements Bot {
                 if (currentDistance < minDistance) {
                     minDist = enemy;
                     minDistance = currentDistance;
-                    aux=true;
                 }
             }
         }
@@ -336,11 +334,7 @@ public class MyBot implements Bot {
             api.navigationStart(unit.id, minDist.x, minDist.y);
             units.get(unit.id).helping = true;
             units.get(unit.id).opponent = minDist;
-            if(aux){
-                api.saySomething(unit.id, "mudança para ir " + minDist.x + " " + minDist.y);
-                System.out.println("asd");
-            }else
-                api.saySomething(unit.id, "A ir " + minDist.x + " " + minDist.y);
+
         }
     }
 
