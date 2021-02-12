@@ -6,6 +6,9 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.awt.*;
+import java.util.List;
+import java.util.ArrayList;
+
 
 /**
  * Initial implementation keeps picking random locations on the map
@@ -18,6 +21,7 @@ public class MyBot implements Bot {
     HashMap<Integer, Unit> units = new HashMap<Integer, Unit>();//Serve para colocarmos nesta classe coisas especificas de cada unit
     List<ResourceInView> resources = new ArrayList<ResourceInView>();
     HashMap<ResourceInView, Boolean> resourcesOccupied = new HashMap<ResourceInView, Boolean>();
+    List<OpponentInView> visibleOponents = new ArrayList<OpponentInView>();
 
     /*Auxiliar function to determine the shortest path between the WORKER and all the resources*/
     private void shortestPathToResource(UnitData unit, Api api){
@@ -120,7 +124,7 @@ public class MyBot implements Bot {
 
     @Override
     public void update(GameState state, Api api) {
-
+        visibleOponents.clear();
         smartSpawnUnits(state, api);
 
         // We iterate through all of our units that are still alive.
@@ -134,16 +138,39 @@ public class MyBot implements Bot {
             // If the unit is a warrior and it sees an opponent then start shooting
             if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length > 0) {
 
-                if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length > 0) {
+                OpponentInView enemy = ChooseTarget(unit);
+                float RotationAngle = PredictPosition(unit, enemy);
+                Shoot(api, unit, RotationAngle, enemy, state);
 
-                    OpponentInView enemy = ChooseTarget(unit);
-                    float RotationAngle = PredictPosition(unit, enemy);
-                    Shoot(api, unit, RotationAngle, enemy);
-
-                }
             }
+            else {
+
+                goToEnemy(api,unit);
+
+            }
+
+            // If the unit sees an opponent
+            if (unit.opponentsInView.length > 0) {
+
+                for (OpponentInView opponent : unit.opponentsInView) {
+                    visibleOponents.add(opponent);
+                }
+
+            }
+
         }
     }
+
+        public void goToEnemy(Api api, UnitData u){
+
+            for (OpponentInView enemy : visibleOponents) {
+                if(u.navigationPath.length == 0) {
+                    api.navigationStart(u.id, enemy.x, enemy.y);
+                    return;
+                }
+            }
+
+        }
 
         public OpponentInView ChooseTarget(UnitData u){
 
@@ -157,8 +184,8 @@ public class MyBot implements Bot {
                     }
                 }
             }
-            return enemy;
 
+            return enemy;
         }
 
         public float PredictPosition(UnitData u, OpponentInView enemy){
@@ -182,23 +209,18 @@ public class MyBot implements Bot {
             vY *= Math.sin( Math.toRadians( EnemyAngle ) ) * v;
 
             double t;
-            double t1 = (enemy.x - u.x) / (Constants.BULLET_VELOCITY * Math.cos(Math.toRadians( unitAngle ) ) - vX);
-            double t2 = (enemy.y - u.y) / (Constants.BULLET_VELOCITY * Math.sin(Math.toRadians( unitAngle ) ) - vY);
+            double tx = (enemy.x - u.x) / (Constants.BULLET_VELOCITY * Math.cos(Math.toRadians( unitAngle ) ) - vX);
+            double ty = (enemy.y - u.y) / (Constants.BULLET_VELOCITY * Math.sin(Math.toRadians( unitAngle ) ) - vY);
 
-            if(t1 == t2){
-                t = t1;
-            } else {
-                t = t2;
-            }
+            t = tx;
 
-            float x = (float) (vX * t + enemy.x);
-            float y = (float) (vY * t + enemy.y);
+            float x = (float) (vX * tx + enemy.x);
+            float y = (float) (vY * ty + enemy.y);
 
             return MathUtil.angleBetweenUnitAndPoint(u, x, y);
         }
 
-
-        public void Shoot(Api api, UnitData u, float rotationAngle, OpponentInView enemy) {
+        public void Shoot(Api api, UnitData u, float rotationAngle, OpponentInView enemy, GameState state) {
 
             if (rotationAngle > 0 && rotationAngle < 2f) {
                 api.setRotation(u.id, Rotation.SLOW_LEFT);
@@ -220,7 +242,7 @@ public class MyBot implements Bot {
 
             if (enemyDistance > 15){
                 shootAngle = (float) Math.toDegrees(Math.asin(enemyRadius / (float) offset)) / 3f;
-                api.setSpeed(u.id, Speed.FORWARD);
+                api.navigationStart(u.id, enemy.x, enemy.y);
             }
             else {
                 shootAngle = (float) Math.toDegrees(Math.asin(enemyRadius / (float) offset)) / 2f;
@@ -229,7 +251,29 @@ public class MyBot implements Bot {
 
 
             if ((rotationAngle < shootAngle && rotationAngle >= 0) || (rotationAngle > -shootAngle && rotationAngle <= 0)) {
-                api.shoot(u.id);
+
+                //No ally ahead
+                int i;
+                for (i = 0; i < state.units.length; i++) {
+                    UnitData ally = state.units[i];
+
+                    if (ally == u)
+                        continue;
+
+                    float allyAngle = MathUtil.angleBetweenUnitAndPoint(u,ally.x,ally.y);
+
+                    if( MathUtil.distance(u.x,u.y,enemy.x,enemy.y) > MathUtil.distance(u.x,u.y,ally.x,ally.y) ) {
+                        if ( Math.abs(allyAngle) < 2f ) {
+                            api.saySomething(u.id, "Hello Friend");
+                            break;
+                        }
+                    }
+                }
+
+                if (i>=state.units.length){
+                    api.shoot(u.id);
+                }
+
             }
 
         }
