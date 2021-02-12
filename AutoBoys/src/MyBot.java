@@ -16,6 +16,7 @@ public class MyBot implements Bot {
 
     List<InitialPosition> initialPosition = new ArrayList<InitialPosition>();
 
+
     private boolean initialize = false;
     private int mapSide = 0;//1->left; 2->right
     /*se aparecer uma resource mais perto entao inverter*/
@@ -403,33 +404,25 @@ public class MyBot implements Bot {
 
         public void Shoot(Api api, UnitData u, float rotationAngle, OpponentInView enemy, GameState state) {
 
-            if (rotationAngle > 0 && rotationAngle < 2f) {
-                api.setRotation(u.id, Rotation.SLOW_LEFT);
-            }
-            else if (rotationAngle < 0 && rotationAngle > -2f) {
-                api.setRotation(u.id, Rotation.SLOW_RIGHT);
-            }
-            else if (rotationAngle > 0 ) {
-                api.setRotation(u.id, Rotation.LEFT);
-            }
-            else {
-                api.setRotation(u.id, Rotation.RIGHT);
-            }
+            Rotate(api, u, rotationAngle);
 
             float shootAngle;
             float enemyRadius = Constants.UNIT_DIAMETER / 2f;
             float enemyDistance = MathUtil.distance(u.x, u.y, enemy.x, enemy.y);
-            double offset = Math.sqrt(Math.pow((double) enemyRadius, 2) + Math.pow((double) enemyDistance, 2));
+            double offset = Math.sqrt( Math.pow(enemyRadius, 2) + Math.pow(enemyDistance, 2) );
 
             if (enemyDistance > 15){
                 shootAngle = (float) Math.toDegrees(Math.asin(enemyRadius / (float) offset)) / 3f;
+                if (u.rotation == Rotation.NONE) {
+                    float enemyRotation = MathUtil.angleBetweenUnitAndPoint(enemy.x, enemy.y, enemy.orientationAngle, u.x, u.y);
+                    Rotate(api, u, enemyRotation);
+                }
                 api.navigationStart(u.id, enemy.x, enemy.y);
             }
             else {
                 shootAngle = (float) Math.toDegrees(Math.asin(enemyRadius / (float) offset)) / 2f;
                 api.setSpeed(u.id, Speed.NONE);
             }
-
 
             if ((rotationAngle < shootAngle && rotationAngle >= 0) || (rotationAngle > -shootAngle && rotationAngle <= 0)) {
 
@@ -444,7 +437,7 @@ public class MyBot implements Bot {
                     float allyAngle = MathUtil.angleBetweenUnitAndPoint(u,ally.x,ally.y);
 
                     if( MathUtil.distance(u.x,u.y,enemy.x,enemy.y) > MathUtil.distance(u.x,u.y,ally.x,ally.y) ) {
-                        if ( Math.abs(allyAngle) < 2f ) {
+                        if ( Math.abs(allyAngle) < 3f ) {
                             api.saySomething(u.id, "Hello Friend");
                             break;
                         }
@@ -459,6 +452,20 @@ public class MyBot implements Bot {
 
         }
 
+        public void Rotate(Api api, UnitData u, float rotationAngle){
+            if (rotationAngle > 0 && rotationAngle < 2f) {
+                api.setRotation(u.id, Rotation.SLOW_LEFT);
+            }
+            else if (rotationAngle < 0 && rotationAngle > -2f) {
+                api.setRotation(u.id, Rotation.SLOW_RIGHT);
+            }
+            else if (rotationAngle > 0 ) {
+                api.setRotation(u.id, Rotation.LEFT);
+            }
+            else {
+                api.setRotation(u.id, Rotation.RIGHT);
+            }
+        }
 
     // Connects your bot to Lia game engine, don't change it.
     public static void main(String[] args) throws Exception {
